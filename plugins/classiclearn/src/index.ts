@@ -30,7 +30,8 @@ export const sendMessageCommand = {
         { nonce: fixNonce }
       );
       return null;
- catch (error) { 
+    } 
+    catch (error) { 
     console.error("[SillyMessages] Error:", error);
     showToast("You fucked up. Check da logs", 3000)
     return null;
