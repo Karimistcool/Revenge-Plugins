@@ -16,8 +16,8 @@ Goal: Make a plugin that'll send an ephemeral message either through Clyde or on
 export const sendMessageCommand = {
   name: "sendMessage",
   displayName: "sendMessage",
-  description: "iteration 1",
-  displayDescription: "iteration 1",
+  description: "iteration 2",
+  displayDescription: "iteration 2",
   execute: async (args: any, ctx: any) => {
     try {
       const fixNonce = Date.now().toString();
