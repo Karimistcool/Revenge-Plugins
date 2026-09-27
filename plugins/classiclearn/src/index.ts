@@ -9,7 +9,7 @@ const messageUtil = findByProps(
   "sendBotMessage",
   "receiveMessage"
 );
-/** This is iteration 1 of index.ts
+/** This is iteration 2 of index.ts. Updates: Changed line 21, I think I had a closing bracket a bit too early from where it *actually* should close. Hopefully this fixes any potential issues.
 took the messageactions stuff from kmio's Commands plugin. hope it works.
 Goal: Make a plugin that'll send an ephemeral message either through Clyde or oneself.
 **/
@@ -18,7 +18,6 @@ export const sendMessageCommand = {
   displayName: "sendMessage",
   description: "iteration 1",
   displayDescription: "iteration 1",
-  },
   execute: async (args: any, ctx: any) => {
     try {
       const fixNonce = Date.now().toString();
@@ -36,4 +35,5 @@ export const sendMessageCommand = {
     showToast("You fucked up. Check da logs", 3000)
     return null;
     }
-}
+  }
+};
