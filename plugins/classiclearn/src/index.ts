@@ -39,7 +39,7 @@ export const sendMessageCommand = {
     return null;
     }
   }
-} ,
+},
 
 export default {
   onLoad() {
