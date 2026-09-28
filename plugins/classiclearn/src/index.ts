@@ -12,9 +12,11 @@ const messageUtil = findByProps(
 
 /**
 This is iteration 5 of index.ts. Updates: Added onLoad functions to see if that's why it won't turn on.
+Mini Update: Attempted to fix potential syntax errors to hopefully fix any issues while deploying.
 took the messageactions stuff from kmio's Commands plugin. hope it works.
 Goal: Make a plugin that'll send an ephemeral message either through Clyde or oneself.
 **/
+
 export const sendMessageCommand = {
   name: "sendMessage",
   displayName: "sendMessage",
@@ -33,11 +35,11 @@ export const sendMessageCommand = {
       return null;
  catch (error) { 
     console.error("[SillyMessages] Error:", error);
-    showToast("You fucked up. Check da logs", 3000)
+    showToast("You fucked up. Check da logs", 3000);
     return null;
     }
   }
-};
+} ,
 
 export default {
   onLoad() {
@@ -52,7 +54,7 @@ export default {
   },
   onUnload() {
     console.log("[SillyStuff] See ya!");
-    showToast("Bye bye!")
+    showToast("Bye bye!");
     patches.forEach((p) => p());
   },
 };
