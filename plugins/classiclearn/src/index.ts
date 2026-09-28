@@ -1,6 +1,6 @@
 import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
-import { registerCommand } from "@vendetta/plugin"
+import { registerCommand } from "@vendetta/commands"
 
 const MessageActions = findByProps("sendMessage");
 const patches: (() => void)[] = [];
