@@ -12,6 +12,7 @@ const messageUtil = findByProps(
 
 /**
 This is iteration 6 of index.ts. Updates: Fixed some major issues with the code. Hopefully Github Deployment can finally read this.
+Mini Update: Added Application stuff to hopefully register it as a proper command.
 took the messageactions stuff from kmio's Commands plugin. hope it works.
 Goal: Make a plugin that'll send an ephemeral message either through Clyde or oneself.
 **/
@@ -21,6 +22,9 @@ const sendMessageCommand = {
   displayName: "sendMessage",
   description: "iteration 6",
   displayDescription: "iteration 6",
+  applicationId: "-1",
+  inputType: 1,
+  type: 1,
   execute: async (args: any, ctx: any) => {
     try {
       const fixNonce = Date.now().toString();
