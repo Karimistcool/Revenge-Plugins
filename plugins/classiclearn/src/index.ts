@@ -1,27 +1,26 @@
-import { findByStoreName, findByProps } from "@vendetta/metro";
-import { after } from "@vendetta/patcher";
-import { storage } from "@vendetta/plugin";
+import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
 import { registerCommand } from "@vendetta/plugin"
 
 const MessageActions = findByProps("sendMessage");
+const patches: (() => void)[] = [];
+
 const messageUtil = findByProps(
   "sendBotMessage",
   "receiveMessage"
 );
 
 /**
-This is iteration 5 of index.ts. Updates: Added onLoad functions to see if that's why it won't turn on.
-Mini Update: Attempted to fix potential syntax errors to hopefully fix any issues while deploying.
+This is iteration 6 of index.ts. Updates: Fixed some major issues with the code. Hopefully Github Deployment can finally read this.
 took the messageactions stuff from kmio's Commands plugin. hope it works.
 Goal: Make a plugin that'll send an ephemeral message either through Clyde or oneself.
 **/
 
-export const sendMessageCommand = {
+const sendMessageCommand = {
   name: "sendMessage",
   displayName: "sendMessage",
-  description: "iteration 5",
-  displayDescription: "iteration 5",
+  description: "iteration 6",
+  displayDescription: "iteration 6",
   execute: async (args: any, ctx: any) => {
     try {
       const fixNonce = Date.now().toString();
@@ -33,13 +32,13 @@ export const sendMessageCommand = {
         { nonce: fixNonce }
       );
       return null;
- catch (error) { 
+    } catch (error) { 
     console.error("[SillyMessages] Error:", error);
     showToast("You fucked up. Check da logs", 3000);
     return null;
     }
   }
-},
+}
 
 export default {
   onLoad() {
@@ -55,6 +54,6 @@ export default {
   onUnload() {
     console.log("[SillyStuff] See ya!");
     showToast("Bye bye!");
-    patches.forEach((p) => p());
+    patches.forEach((patch) => patch());
   },
 };
