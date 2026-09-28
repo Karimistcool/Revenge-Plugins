@@ -9,15 +9,17 @@ const messageUtil = findByProps(
   "sendBotMessage",
   "receiveMessage"
 );
-/** This is iteration 3 of index.ts. Updates: Added registerCommand at the end. I think it's needed to actually make the command show up?
+
+/**
+This is iteration 5 of index.ts. Updates: Added onLoad functions to see if that's why it won't turn on.
 took the messageactions stuff from kmio's Commands plugin. hope it works.
 Goal: Make a plugin that'll send an ephemeral message either through Clyde or oneself.
 **/
 export const sendMessageCommand = {
   name: "sendMessage",
   displayName: "sendMessage",
-  description: "iteration 3",
-  displayDescription: "iteration 3",
+  description: "iteration 5",
+  displayDescription: "iteration 5",
   execute: async (args: any, ctx: any) => {
     try {
       const fixNonce = Date.now().toString();
@@ -29,8 +31,7 @@ export const sendMessageCommand = {
         { nonce: fixNonce }
       );
       return null;
-    } 
-    catch (error) { 
+ catch (error) { 
     console.error("[SillyMessages] Error:", error);
     showToast("You fucked up. Check da logs", 3000)
     return null;
@@ -38,4 +39,20 @@ export const sendMessageCommand = {
   }
 };
 
-registerCommand(sendMessageCommand);
+export default {
+  onLoad() {
+    try {
+      console.log("[SillyStuff] Well, your plugin loaded. Does it work?");
+      showToast("Well, your plugin loaded. Does it work?");
+      registerCommand(sendMessageCommand);
+    } catch (error) {
+      console.log("[SillyStuff] Sumn blew up. Read this: ", error);
+      showToast("Well, I tried loading, but something happened.");
+    }
+  },
+  onUnload() {
+    console.log("[SillyStuff] See ya!");
+    showToast("Bye bye!")
+    patches.forEach((p) => p());
+  },
+};
