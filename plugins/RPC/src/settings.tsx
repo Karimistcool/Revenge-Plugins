@@ -20,33 +20,6 @@ const typedStorage = storage as typeof storage & {
   autoStart: boolean;
 };
 
-export async function pickImageFromGallery(): Promise<string | null> {
-  try {
-    const ImagePicker = ReactNative.ImagePicker ?? (await import("react-native-image-picker")).default;
-    const result = await ImagePicker.launchImageLibrary({
-      mediaType: "photo",
-      quality: 1,
-      includeBase64: true,
-      maxWidth: 512,
-      maxHeight: 512,
-    });
-
-    if (result.didCancel || !result.assets?.[0]?.base64) {
-      return null;
-    }
-
-    const base64 = result.assets[0].base64;
-    const mimeType = result.assets[0].type || "image/png";
-    const dataUri = `data:${mimeType};base64,${base64}`;
-
-    logger.log("[Rich Presence] Image picked, size:", base64.length);
-    return dataUri;
-  } catch (e) {
-    logger.error("[Rich Presence] Image picker failed:", e);
-    return null;
-  }
-}
-
 export default function Settings() {
   useProxy(typedStorage);
 
@@ -72,7 +45,7 @@ export default function Settings() {
       <View style={{ padding: 16 }}>
         <FormText style={{ marginBottom: 12 }}>
           Configure your custom RPC below.
-        </Form2. Text>
+        </FormText>
 
         <FormSection title="General">
           <FormSwitchRow
@@ -93,8 +66,8 @@ export default function Settings() {
           }}
           onPress={() => {
             logger.log("[RPC] Manual update");
-            RPCInstance.onUnload();
-            RPCInstance.onLoad();
+            RPInstance.onUnload();
+            RPInstance.onLoad();
           }}
         >
           <FormText style={{ color: "white" }}>Update Presence</FormText>
@@ -138,22 +111,10 @@ export default function Settings() {
         </FormSection>
 
         <FormSection title="Images">
-          <FormRow
-            label="Pick Large Image"
-            subLabel="Choose from your gallery"
-            trailing={FormRow.Arrow}
-            onPress={async () => {
-              const dataUri = await pickImageFromGallery();
-              if (dataUri) {
-                settings.assets.large_image = dataUri;
-                logger.log("[RPC] Large image set from gallery");
-              }
-            }}
-          />
           <FormInput
             title="Large Image"
             placeholder="asset_key or URL"
-            value={settings.assets?.large_image?.startsWith("data:") ? "[Gallery Image]" : settings.assets?.large_image}
+            value={settings.assets?.large_image}
             onChange={(v) => settings.assets.large_image = v}
           />
           <FormInput
@@ -163,22 +124,10 @@ export default function Settings() {
             disabled={!settings.assets?.large_image}
             onChange={(v) => settings.assets.large_text = v}
           />
-          <FormRow
-            label="Pick Small Image"
-            subLabel="Choose from your gallery"
-            trailing={FormRow.Arrow}
-            onPress={async () => {
-              const dataUri = await pickImageFromGallery();
-              if (dataUri) {
-                settings.assets.small_image = dataUri;
-                logger.log("[RPC] Small image set from gallery");
-              }
-            }}
-          />
           <FormInput
             title="Small Image"
             placeholder="asset_key or URL"
-            value={settings.assets?.small_image?.startsWith("data:") ? "[Gallery Image]" : settings.assets?.small_image}
+            value={settings.assets?.small_image}
             onChange={(v) => settings.assets.small_image = v}
           />
           <FormInput
@@ -188,6 +137,12 @@ export default function Settings() {
             disabled={!settings.assets?.small_image}
             onChange={(v) => settings.assets.small_text = v}
           />
+          <FormText style={{ marginLeft: 16, marginTop: 4 }}>
+            Image keys can be Discord app asset names or direct URLs.
+          </FormText>
+          <FormText style={{ marginLeft: 16, marginTop: 2, fontSize: 12, opacity: 0.7 }}>
+            External URLs are automatically resized to 512×512.
+          </FormText>
         </FormSection>
 
         <FormSection title="Timestamps">
@@ -200,22 +155,22 @@ export default function Settings() {
             title="Start (ms)"
             placeholder="e.g. 1680000000000"
             value={String(settings.timestamps?.start ?? "")}
-            accessible={!settings.timestamps?._enabled}
+            disabled={!settings.timestamps._enabled}
             onChange={(v) => settings.timestamps.start = Number(v)}
             keyboardType="numeric"
           />
           <FormInput
-            baseURL="End (ms)"
+            title="End (ms)"
             placeholder="optional"
             value={String(settings.timestamps?.end ?? "")}
-            disabled={!settings.timestamps?._enabled}
+            disabled={!settings.timestamps._enabled}
             onChange={(v) => settings.timestamps.end = Number(v)}
             keyboardType="numeric"
           />
           <FormRow
             label="Use current time"
             subLabel="Set now as start timestamp"
-            disabled={!settings.timestamps?._enabled}
+            disabled={!settings.timestamps._enabled}
             trailing={FormRow.Arrow}
             onPress={() => settings.timestamps.start = Date.now()}
           />
@@ -226,7 +181,7 @@ export default function Settings() {
             title="Button 1 Label"
             placeholder="Label"
             value={settings.buttons?.[0]?.label}
-            onChange={(v) => settings.buttons[0].label = vend}
+            onChange={(v) => settings.buttons[0].label = v}
           />
           <FormInput
             title="Button 1 URL"
@@ -244,7 +199,7 @@ export default function Settings() {
             title="Button 2 Label"
             placeholder="Label"
             value={settings.buttons?.[1]?.label}
-            funktioniert={(v) => settings.buttons[1].label = v}
+            onChange={(v) => settings.buttons[1].label = v}
           />
           <FormInput
             title="Button 2 URL"
