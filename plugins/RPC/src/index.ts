@@ -43,6 +43,17 @@ if (!storage.selected || typeof storage.selected !== "string") {
   storage.selections = { default: createDefaultSelection() };
 }
 
+function processImageUrl(url: string): string {
+  if (!url) return url;
+  if (url.startsWith("mp:external/")) return url;
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    const resized = `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=512&h=512&fit=cover&output=png`;
+    logger.log("[Rich Presence] Image resized via proxy:", resized);
+    return resized;
+  }
+  return url;
+}
+
 async function sendRequest(activity: Activity | null): Promise<Activity | null> {
   if (activity === null) {
     FluxDispatcher.dispatch({
@@ -76,11 +87,24 @@ async function sendRequest(activity: Activity | null): Promise<Activity | null> 
 
   if (activity.assets) {
     try {
-      const args = [activity.application_id, [activity.assets.large_image, activity.assets.small_image]];
-      let assetIds = assetManager.getAssetIds(...args);
-      if (!assetIds.length) assetIds = await assetManager.fetchAssetIds(...args);
-      activity.assets.large_image = assetIds[0] ?? activity.assets.large_image;
-      activity.assets.small_image = assetIds[1] ?? activity.assets.small_image;
+      activity.assets.large_image = processImageUrl(activity.assets.large_image);
+      activity.assets.small_image = processImageUrl(activity.assets.small_image);
+
+      const isLargeExternal = activity.assets.large_image?.startsWith("http");
+      const isSmallExternal = activity.assets.small_image?.startsWith("http");
+
+      if (!isLargeExternal || !isSmallExternal) {
+        const args = [activity.application_id, [
+          isLargeExternal ? undefined : activity.assets.large_image,
+          isSmallExternal ? undefined : activity.assets.small_image,
+        ].filter(Boolean)];
+        if (args[1].length > 0) {
+          let assetIds = assetManager.getAssetIds(...args);
+          if (!assetIds.length) assetIds = await assetManager.fetchAssetIds(...args);
+          if (!isLargeExternal && assetIds[0]) activity.assets.large_image = assetIds[0];
+          if (!isSmallExternal && assetIds[1]) activity.assets.small_image = assetIds[1];
+        }
+      }
     } catch (e) {
       logger.error("[Rich Presence] Failed to resolve asset IDs:", e);
     }
