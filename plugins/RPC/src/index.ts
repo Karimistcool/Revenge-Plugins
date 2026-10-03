@@ -47,9 +47,7 @@ function processImageUrl(url: string): string {
   if (!url) return url;
   if (url.startsWith("mp:external/")) return url;
   if (url.startsWith("http://") || url.startsWith("https://")) {
-    const resized = `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=512&h=512&fit=cover&output=png`;
-    logger.log("[Rich Presence] Image resized via proxy:", resized);
-    return resized;
+    return url;
   }
   return url;
 }
@@ -94,11 +92,12 @@ async function sendRequest(activity: Activity | null): Promise<Activity | null> 
       const isSmallExternal = activity.assets.small_image?.startsWith("http");
 
       if (!isLargeExternal || !isSmallExternal) {
-        const args = [activity.application_id, [
-          isLargeExternal ? undefined : activity.assets.large_image,
-          isSmallExternal ? undefined : activity.assets.small_image,
-        ].filter(Boolean)];
-        if (args[1].length > 0) {
+        const keys = [
+          isLargeExternal ? null : activity.assets.large_image,
+          isSmallExternal ? null : activity.assets.small_image,
+        ].filter(Boolean);
+        if (keys.length > 0) {
+          const args = [activity.application_id, keys];
           let assetIds = assetManager.getAssetIds(...args);
           if (!assetIds.length) assetIds = await assetManager.fetchAssetIds(...args);
           if (!isLargeExternal && assetIds[0]) activity.assets.large_image = assetIds[0];
@@ -139,7 +138,7 @@ export default {
   onLoad() {
     const current = storage.selections?.[storage.selected];
     if (!current) {
-      logger.error("[Rich Presence] Invalid selected profile:", storage.selected);
+      logger.logger.error("[Rich Presence] Invalid selected profile:", storage.selected);
       return;
     }
 
