@@ -7,6 +7,7 @@ import { cloneAndFilter } from "./utils";
 
 const assetManager = findByProps("getAssetIds");
 const pluginStartSince = Date.now();
+const SOCKET_ID = "RPC@Reveg";
 
 const typedStorage = storage as typeof storage & {
   selected: string;
@@ -43,15 +44,21 @@ if (!storage.selected || typeof storage.selected !== "string") {
   storage.selections = { default: createDefaultSelection() };
 }
 
-function processImageUrl(url: string): string {
-  if (!url) return url;
-  if (url.startsWith("mp:external/")) return url;
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    const resized = `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=512&h=512&fit=cover&output=png`;
-    logger.log("[Rich Presence] Image resized via proxy:", resized);
-    return resized;
+async function resolveAsset(appId: string, key?: string): Promise<string | undefined> {
+  if (!key) return undefined;
+  // external URLs and mp: pass through untouched
+  if (key.startsWith("http://") || key.startsWith("https://") || key.startsWith("mp:")) return key;
+  // app asset keys need resolving
+  let ids: string[] = [];
+  try {
+    ids = assetManager.getAssetIds(appId, [key]);
+  } catch {}
+  if (!ids?.length) {
+    try {
+      ids = await assetManager.fetchAssetIds(appId, [key]);
+    } catch {}
   }
-  return url;
+  return ids?.[0] ?? key;
 }
 
 async function sendRequest(activity: Activity | null): Promise<Activity | null> {
@@ -60,7 +67,7 @@ async function sendRequest(activity: Activity | null): Promise<Activity | null> 
       type: "LOCAL_ACTIVITY_UPDATE",
       activity: null,
       pid: 1608,
-      socketId: "RPC@Reveg",
+      socketId: SOCKET_ID,
     });
     logger.log("[Rich Presence] Cleared activity");
     return null;
@@ -72,6 +79,7 @@ async function sendRequest(activity: Activity | null): Promise<Activity | null> 
   activity = cloneAndFilter(activity);
 
   if (timestampEnabled) {
+    activity.timestamps ??= {} as any;
     if (typeof activity.timestamps.start !== "number") {
       activity.timestamps.start = pluginStartSince;
     }
@@ -87,24 +95,14 @@ async function sendRequest(activity: Activity | null): Promise<Activity | null> 
 
   if (activity.assets) {
     try {
-      activity.assets.large_image = processImageUrl(activity.assets.large_image);
-      activity.assets.small_image = processImageUrl(activity.assets.small_image);
-
-      const isLargeExternal = activity.assets.large_image?.startsWith("http");
-      const isSmallExternal = activity.assets.small_image?.startsWith("http");
-
-      if (!isLargeExternal || !isSmallExternal) {
-        const args = [activity.application_id, [
-          isLargeExternal ? undefined : activity.assets.large_image,
-          isSmallExternal ? undefined : activity.assets.small_image,
-        ].filter(Boolean)];
-        if (args[1].length > 0) {
-          let assetIds = assetManager.getAssetIds(...args);
-          if (!assetIds.length) assetIds = await assetManager.fetchAssetIds(...args);
-          if (!isLargeExternal && assetIds[0]) activity.assets.large_image = assetIds[0];
-          if (!isSmallExternal && assetIds[1]) activity.assets.small_image = assetIds[1];
-        }
-      }
+      const appId = activity.application_id;
+      const large = await resolveAsset(appId, activity.assets.large_image);
+      const small = await resolveAsset(appId, activity.assets.small_image);
+      if (large) activity.assets.large_image = large;
+      else delete activity.assets.large_image;
+      if (small) activity.assets.small_image = small;
+      else delete activity.assets.small_image;
+      if (Object.keys(activity.assets).length === 0) delete activity.assets;
     } catch (e) {
       logger.error("[Rich Presence] Failed to resolve asset IDs:", e);
     }
@@ -128,7 +126,7 @@ async function sendRequest(activity: Activity | null): Promise<Activity | null> 
     type: "LOCAL_ACTIVITY_UPDATE",
     activity,
     pid: 1608,
-    socketId: "RichPresence@Vendetta",
+    socketId: SOCKET_ID,
   });
 
   logger.log("[Rich Presence] Activity sent:", activity);
