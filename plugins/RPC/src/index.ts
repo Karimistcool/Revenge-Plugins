@@ -1,18 +1,13 @@
-import { React, ReactNative } from "@vendetta/metro/common";
-import { Forms } from "@vendetta/ui/components";
-import { useProxy } from "@vendetta/storage";
+import { FluxDispatcher } from "@vendetta/metro/common";
+import { findByProps } from "@vendetta/metro";
 import { storage } from "@vendetta/plugin";
 import { logger } from "@vendetta";
-import { updatePresence } from ".";
+import Settings from "./settings";
+import { cloneAndFilter } from "./utils";
 
-const { View, ScrollView, TouchableOpacity } = ReactNative;
-const {
-  FormText,
-  FormInput,
-  FormRow,
-  FormSwitchRow,
-  FormSection,
-} = Forms;
+const assetManager = findByProps("getAssetIds");
+const pluginStartSince = Date.now();
+const SOCKET_ID = "RPC@Reveg";
 
 const typedStorage = storage as typeof storage & {
   selected: string;
@@ -20,293 +15,141 @@ const typedStorage = storage as typeof storage & {
   autoStart: boolean;
 };
 
+enum ActivityTypes {
+  PLAYING = 0,
+  STREAMING = 1,
+  LISTENING = 2,
+  WATCHING = 3,
+  COMPETING = 5,
+}
+
 function createDefaultSelection(): Activity {
   return {
     name: "Reveg©",
     application_id: "1054951789318909972",
     flags: 0,
-    type: 0,
+    type: ActivityTypes.PLAYING,
     timestamps: {
       _enabled: false,
-      start: Date.now(),
+      start: pluginStartSince,
     },
     assets: {},
     buttons: [{}, {}],
   };
 }
 
-export default function Settings() {
-  useProxy(typedStorage);
-
-  if (!typedStorage.selections || typeof typedStorage.selections !== "object") {
-    typedStorage.selections = {};
-  }
-
-  typedStorage.selections.default ??= createDefaultSelection();
-
-  if (
-    typeof typedStorage.selected !== "string" ||
-    !typedStorage.selections[typedStorage.selected]
-  ) {
-    typedStorage.selected = "default";
-  }
-
-  const profile = typedStorage.selections[typedStorage.selected];
-  profile.assets ??= {};
-  profile.timestamps ??= { _enabled: false };
-  profile.buttons ??= [{}, {}];
-  profile.buttons[0] ??= {};
-  profile.buttons[1] ??= {};
-
-  const settings = useProxy(profile) as Activity;
-
-  return (
-    <ScrollView style={{ paddingBottom: 24 }}>
-      <View style={{ padding: 16 }}>
-        <FormText style={{ marginBottom: 12 }}>
-          Configure your custom RPC below.
-        </FormText>
-
-        <FormSection title="General">
-          <FormSwitchRow
-            label="Auto Start"
-            subLabel="Start the rich presence feature whenever Revenge gets launched"
-            value={typedStorage.autoStart ?? false}
-            onValueChange={(value) => {
-              typedStorage.autoStart = value;
-            }}
-          />
-        </FormSection>
-
-        <TouchableOpacity
-          style={{
-            backgroundColor: "#5865F2",
-            padding: 12,
-            borderRadius: 8,
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-          onPress={() => {
-            logger.log("[RPC] Manual update");
-            updatePresence().catch((e) =>
-              logger.error("[RPC] Update failed:", e)
-            );
-          }}
-        >
-          <FormText style={{ color: "white" }}>Update Presence</FormText>
-        </TouchableOpacity>
-
-        <FormSection title="Basic">
-          <FormInput
-            title="Application Name"
-            placeholder="Discord"
-            value={settings.name}
-            onChange={(value) => {
-              settings.name = value;
-            }}
-          />
-
-          <FormInput
-            title="Application ID"
-            placeholder="1054951789318909972"
-            value={settings.application_id}
-            onChange={(value) => {
-              settings.application_id = value;
-            }}
-            keyboardType="numeric"
-            helpText="Use the Application ID that owns your Rich Presence assets."
-          />
-
-          <FormInput
-            title="Activity Type (0-5)"
-            placeholder="0"
-            value={String(settings.type ?? 0)}
-            onChange={(value) => {
-              const type = Number(value);
-              if (Number.isInteger(type) && type >= 0 && type <= 5) {
-                settings.type = type;
-              }
-            }}
-            keyboardType="numeric"
-            helpText="Playing, Streaming, Listening, Watching, Custom, Competing"
-          />
-
-          <FormInput
-            title="Details"
-            placeholder="Competitive"
-            value={settings.details ?? ""}
-            onChange={(value) => {
-              settings.details = value;
-            }}
-          />
-
-          <FormInput
-            title="State"
-            placeholder="Playing Solo"
-            value={settings.state ?? ""}
-            onChange={(value) => {
-              settings.state = value;
-            }}
-          />
-        </FormSection>
-
-        <FormSection title="Images">
-          <FormInput
-            title="Large Image"
-            placeholder="uploaded_asset_key or URL"
-            value={settings.assets?.large_image}
-            onChange={(value) => {
-              settings.assets!.large_image = value;
-            }}
-          />
-
-          <FormInput
-            title="Large Image Text"
-            placeholder="Displayed on hover"
-            value={settings.assets?.large_text}
-            disabled={!settings.assets?.large_image}
-            onChange={(value) => {
-              settings.assets!.large_text = value;
-            }}
-          />
-
-          <FormInput
-            title="Small Image"
-            placeholder="uploaded_asset_key or URL"
-            value={settings.assets?.small_image}
-            onChange={(value) => {
-              settings.assets!.small_image = value;
-            }}
-          />
-
-          <FormInput
-            title="Small Image Text"
-            placeholder="Displayed on hover"
-            value={settings.assets?.small_text}
-            disabled={!settings.assets?.small_image}
-            onChange={(value) => {
-              settings.assets!.small_text = value;
-            }}
-          />
-
-          <FormText style={{ marginLeft: 16, marginTop: 4 }}>
-            Use an uploaded asset key from this Application ID for the most
-            reliable result. Asset keys are lowercase.
-          </FormText>
-
-          <FormText
-            style={{
-              marginLeft: 16,
-              marginTop: 2,
-              fontSize: 12,
-              opacity: 0.7,
-            }}
-          >
-            Image URLs are passed through unchanged; this plugin does not resize
-            them.
-          </FormText>
-        </FormSection>
-
-        <FormSection title="Timestamps">
-          <FormSwitchRow
-            label="Enable timestamps"
-            value={settings.timestamps?._enabled ?? false}
-            onValueChange={(value) => {
-              settings.timestamps!._enabled = value;
-            }}
-          />
-
-          <FormInput
-            title="Start (ms)"
-            placeholder="e.g. 1680000000000"
-            value={String(settings.timestamps?.start ?? "")}
-            disabled={!settings.timestamps?._enabled}
-            onChange={(value) => {
-              settings.timestamps!.start = value.trim()
-                ? Number(value)
-                : undefined;
-            }}
-            keyboardType="numeric"
-          />
-
-          <FormInput
-            title="End (ms)"
-            placeholder="optional"
-            value={String(settings.timestamps?.end ?? "")}
-            disabled={!settings.timestamps?._enabled}
-            onChange={(value) => {
-              settings.timestamps!.end = value.trim()
-                ? Number(value)
-                : undefined;
-            }}
-            keyboardType="numeric"
-          />
-
-          <FormRow
-            label="Use current time"
-            subLabel="Set now as start timestamp"
-            disabled={!settings.timestamps?._enabled}
-            trailing={FormRow.Arrow}
-            onPress={() => {
-              settings.timestamps!.start = Date.now();
-            }}
-          />
-        </FormSection>
-
-        <FormSection title="Buttons">
-          <FormInput
-            title="Button 1 Label"
-            placeholder="Label"
-            value={settings.buttons?.[0]?.label}
-            onChange={(value) => {
-              settings.buttons![0]!.label = value;
-            }}
-          />
-
-          <FormInput
-            title="Button 1 URL"
-            placeholder="https://example.com"
-            value={settings.buttons?.[0]?.url}
-            disabled={!settings.buttons?.[0]?.label}
-            onChange={(value) => {
-              settings.buttons![0]!.url = value;
-            }}
-            helpText={
-              settings.buttons?.[0]?.label && !settings.buttons?.[0]?.url ? (
-                <ReactNative.Text style={{ color: "red" }}>
-                  Required if button label is set
-                </ReactNative.Text>
-              ) : undefined
-            }
-          />
-
-          <FormInput
-            title="Button 2 Label"
-            placeholder="Label"
-            value={settings.buttons?.[1]?.label}
-            onChange={(value) => {
-              settings.buttons![1]!.label = value;
-            }}
-          />
-
-          <FormInput
-            title="Button 2 URL"
-            placeholder="https://example.com"
-            value={settings.buttons?.[1]?.url}
-            disabled={!settings.buttons?.[1]?.label}
-            onChange={(value) => {
-              settings.buttons![1]!.url = value;
-            }}
-            helpText={
-              settings.buttons?.[1]?.label && !settings.buttons?.[1]?.url ? (
-                <ReactNative.Text style={{ color: "red" }}>
-                  Required if button label is set
-                </ReactNative.Text>
-              ) : undefined
-            }
-          />
-        </FormSection>
-      </View>
-    </ScrollView>
-  );
+if (!storage.selected || typeof storage.selected !== "string") {
+  logger.log("[Rich Presence] Initializing default storage");
+  storage.selected = "default";
+  storage.selections = { default: createDefaultSelection() };
 }
+
+async function resolveAsset(appId: string, key?: string): Promise<string | undefined> {
+  if (!key) return undefined;
+  // external URLs and mp: pass through untouched
+  if (key.startsWith("http://") || key.startsWith("https://") || key.startsWith("mp:")) return key;
+  // app asset keys need resolving
+  let ids: string[] = [];
+  try {
+    ids = assetManager.getAssetIds(appId, [key]);
+  } catch {}
+  if (!ids?.length) {
+    try {
+      ids = await assetManager.fetchAssetIds(appId, [key]);
+    } catch {}
+  }
+  return ids?.[0] ?? key;
+}
+
+async function sendRequest(activity: Activity | null): Promise<Activity | null> {
+  if (activity === null) {
+    FluxDispatcher.dispatch({
+      type: "LOCAL_ACTIVITY_UPDATE",
+      activity: null,
+      pid: 1608,
+      socketId: SOCKET_ID,
+    });
+    logger.log("[Rich Presence] Cleared activity");
+    return null;
+  }
+
+  logger.log("[Rich Presence] Preparing activity:", activity);
+
+  const timestampEnabled = activity.timestamps?._enabled;
+  activity = cloneAndFilter(activity);
+
+  if (timestampEnabled) {
+    activity.timestamps ??= {} as any;
+    if (typeof activity.timestamps.start !== "number") {
+      activity.timestamps.start = pluginStartSince;
+    }
+    if (typeof activity.timestamps.end !== "number" || activity.timestamps.end === 0) {
+      delete activity.timestamps.end;
+    }
+    if (Object.keys(activity.timestamps).length === 0) {
+      delete activity.timestamps;
+    }
+  } else {
+    delete activity.timestamps;
+  }
+
+  if (activity.assets) {
+    try {
+      const appId = activity.application_id;
+      const large = await resolveAsset(appId, activity.assets.large_image);
+      const small = await resolveAsset(appId, activity.assets.small_image);
+      if (large) activity.assets.large_image = large;
+      else delete activity.assets.large_image;
+      if (small) activity.assets.small_image = small;
+      else delete activity.assets.small_image;
+      if (Object.keys(activity.assets).length === 0) delete activity.assets;
+    } catch (e) {
+      logger.error("[Rich Presence] Failed to resolve asset IDs:", e);
+    }
+  }
+
+  if (activity.buttons?.length) {
+    activity.buttons = activity.buttons.filter(x => x && x.label);
+    if (activity.buttons.length) {
+      Object.assign(activity, {
+        metadata: { button_urls: activity.buttons.map(x => x.url) },
+        buttons: activity.buttons.map(x => x.label),
+      });
+    } else {
+      delete activity.buttons;
+    }
+  } else {
+    delete activity.buttons;
+  }
+
+  FluxDispatcher.dispatch({
+    type: "LOCAL_ACTIVITY_UPDATE",
+    activity,
+    pid: 1608,
+    socketId: SOCKET_ID,
+  });
+
+  logger.log("[Rich Presence] Activity sent:", activity);
+  return activity;
+}
+
+export default {
+  onLoad() {
+    const current = storage.selections?.[storage.selected];
+    if (!current) {
+      logger.error("[Rich Presence] Invalid selected profile:", storage.selected);
+      return;
+    }
+
+    if (typedStorage.autoStart) {
+      logger.log("[Rich Presence] Auto-start enabled, applying presence");
+      sendRequest(current).catch(e => logger.error("[Rich Presence] Send failed:", e));
+    }
+  },
+
+  onUnload() {
+    sendRequest(null);
+  },
+
+  settings: Settings,
+};
