@@ -2,8 +2,8 @@ import { React, ReactNative } from "@vendetta/metro/common";
 import { Forms } from "@vendetta/ui/components";
 import { useProxy } from "@vendetta/storage";
 import { storage } from "@vendetta/plugin";
-import RPInstance from ".";
 import { logger } from "@vendetta";
+import { updatePresence } from ".";
 
 const { View, ScrollView, TouchableOpacity } = ReactNative;
 const {
@@ -11,7 +11,7 @@ const {
   FormInput,
   FormRow,
   FormSwitchRow,
-  FormSection
+  FormSection,
 } = Forms;
 
 const typedStorage = storage as typeof storage & {
@@ -20,25 +20,45 @@ const typedStorage = storage as typeof storage & {
   autoStart: boolean;
 };
 
+function createDefaultSelection(): Activity {
+  return {
+    name: "Reveg©",
+    application_id: "1054951789318909972",
+    flags: 0,
+    type: 0,
+    timestamps: {
+      _enabled: false,
+      start: Date.now(),
+    },
+    assets: {},
+    buttons: [{}, {}],
+  };
+}
+
 export default function Settings() {
   useProxy(typedStorage);
 
-  if (!typedStorage.selected || !typedStorage.selections?.[typedStorage.selected]) {
-    logger.warn("[RPC] Resetting invalid profile");
-    typedStorage.selected = "default";
-    typedStorage.selections ??= {};
-    typedStorage.selections.default ??= {
-      name: "Discord",
-      application_id: "1054951789318909972",
-      flags: 0,
-      type: 0,
-      timestamps: { _enabled: false, start: Date.now() },
-      assets: {},
-      buttons: [{}, {}]
-    };
+  if (!typedStorage.selections || typeof typedStorage.selections !== "object") {
+    typedStorage.selections = {};
   }
 
-  const settings = useProxy(typedStorage.selections[typedStorage.selected]) as Activity;
+  typedStorage.selections.default ??= createDefaultSelection();
+
+  if (
+    typeof typedStorage.selected !== "string" ||
+    !typedStorage.selections[typedStorage.selected]
+  ) {
+    typedStorage.selected = "default";
+  }
+
+  const profile = typedStorage.selections[typedStorage.selected];
+  profile.assets ??= {};
+  profile.timestamps ??= { _enabled: false };
+  profile.buttons ??= [{}, {}];
+  profile.buttons[0] ??= {};
+  profile.buttons[1] ??= {};
+
+  const settings = useProxy(profile) as Activity;
 
   return (
     <ScrollView style={{ paddingBottom: 24 }}>
@@ -52,7 +72,9 @@ export default function Settings() {
             label="Auto Start"
             subLabel="Start the rich presence feature whenever Revenge gets launched"
             value={typedStorage.autoStart ?? false}
-            onValueChange={(v) => typedStorage.autoStart = v}
+            onValueChange={(value) => {
+              typedStorage.autoStart = value;
+            }}
           />
         </FormSection>
 
@@ -62,12 +84,13 @@ export default function Settings() {
             padding: 12,
             borderRadius: 8,
             alignItems: "center",
-            marginBottom: 16
+            marginBottom: 16,
           }}
           onPress={() => {
             logger.log("[RPC] Manual update");
-            RPInstance.onUnload();
-            RPInstance.onLoad();
+            updatePresence().catch((e) =>
+              logger.error("[RPC] Update failed:", e)
+            );
           }}
         >
           <FormText style={{ color: "white" }}>Update Presence</FormText>
@@ -78,101 +101,155 @@ export default function Settings() {
             title="Application Name"
             placeholder="Discord"
             value={settings.name}
-            onChange={(v) => settings.name = v}
+            onChange={(value) => {
+              settings.name = value;
+            }}
           />
+
           <FormInput
             title="Application ID"
             placeholder="1054951789318909972"
             value={settings.application_id}
-            onChange={(v) => settings.application_id = v}
+            onChange={(value) => {
+              settings.application_id = value;
+            }}
             keyboardType="numeric"
-            helpText="Geeked out stuff but you can use your own bot's application ID"
+            helpText="Use the Application ID that owns your Rich Presence assets."
           />
+
           <FormInput
             title="Activity Type (0-5)"
             placeholder="0"
             value={String(settings.type ?? 0)}
-            onChange={(v) => settings.type = Number(v)}
+            onChange={(value) => {
+              const type = Number(value);
+              if (Number.isInteger(type) && type >= 0 && type <= 5) {
+                settings.type = type;
+              }
+            }}
             keyboardType="numeric"
             helpText="Playing, Streaming, Listening, Watching, Custom, Competing"
           />
+
           <FormInput
             title="Details"
             placeholder="Competitive"
-            value={settings.details}
-            onChange={(v) => settings.details = v}
+            value={settings.details ?? ""}
+            onChange={(value) => {
+              settings.details = value;
+            }}
           />
+
           <FormInput
             title="State"
             placeholder="Playing Solo"
-            value={settings.state}
-            onChange={(v) => settings.state = v}
+            value={settings.state ?? ""}
+            onChange={(value) => {
+              settings.state = value;
+            }}
           />
         </FormSection>
 
         <FormSection title="Images">
           <FormInput
             title="Large Image"
-            placeholder="asset_key or URL"
+            placeholder="uploaded_asset_key or URL"
             value={settings.assets?.large_image}
-            onChange={(v) => settings.assets.large_image = v}
+            onChange={(value) => {
+              settings.assets!.large_image = value;
+            }}
           />
+
           <FormInput
             title="Large Image Text"
             placeholder="Displayed on hover"
             value={settings.assets?.large_text}
             disabled={!settings.assets?.large_image}
-            onChange={(v) => settings.assets.large_text = v}
+            onChange={(value) => {
+              settings.assets!.large_text = value;
+            }}
           />
+
           <FormInput
             title="Small Image"
-            placeholder="asset_key or URL"
+            placeholder="uploaded_asset_key or URL"
             value={settings.assets?.small_image}
-            onChange={(v) => settings.assets.small_image = v}
+            onChange={(value) => {
+              settings.assets!.small_image = value;
+            }}
           />
+
           <FormInput
             title="Small Image Text"
             placeholder="Displayed on hover"
             value={settings.assets?.small_text}
             disabled={!settings.assets?.small_image}
-            onChange={(v) => settings.assets.small_text = v}
+            onChange={(value) => {
+              settings.assets!.small_text = value;
+            }}
           />
+
           <FormText style={{ marginLeft: 16, marginTop: 4 }}>
-            Image keys can be Discord app asset names or direct URLs.
+            Use an uploaded asset key from this Application ID for the most
+            reliable result. Asset keys are lowercase.
           </FormText>
-          <FormText style={{ marginLeft: 16, marginTop: 2, fontSize: 12, opacity: 0.7 }}>
-            External URLs are automatically resized to 512×512.
+
+          <FormText
+            style={{
+              marginLeft: 16,
+              marginTop: 2,
+              fontSize: 12,
+              opacity: 0.7,
+            }}
+          >
+            Image URLs are passed through unchanged; this plugin does not resize
+            them.
           </FormText>
         </FormSection>
 
         <FormSection title="Timestamps">
           <FormSwitchRow
             label="Enable timestamps"
-            value={settings.timestamps._enabled}
-            onValueChange={(v) => settings.timestamps._enabled = v}
+            value={settings.timestamps?._enabled ?? false}
+            onValueChange={(value) => {
+              settings.timestamps!._enabled = value;
+            }}
           />
+
           <FormInput
             title="Start (ms)"
             placeholder="e.g. 1680000000000"
             value={String(settings.timestamps?.start ?? "")}
-            disabled={!settings.timestamps._enabled}
-            onChange={(v) => settings.timestamps.start = Number(v)}
+            disabled={!settings.timestamps?._enabled}
+            onChange={(value) => {
+              settings.timestamps!.start = value.trim()
+                ? Number(value)
+                : undefined;
+            }}
             keyboardType="numeric"
           />
+
           <FormInput
             title="End (ms)"
             placeholder="optional"
             value={String(settings.timestamps?.end ?? "")}
-            disabled={!settings.timestamps._enabled}
-            onChange={(v) => settings.timestamps.end = Number(v)}
+            disabled={!settings.timestamps?._enabled}
+            onChange={(value) => {
+              settings.timestamps!.end = value.trim()
+                ? Number(value)
+                : undefined;
+            }}
             keyboardType="numeric"
           />
+
           <FormRow
             label="Use current time"
             subLabel="Set now as start timestamp"
-            disabled={!settings.timestamps._enabled}
+            disabled={!settings.timestamps?._enabled}
             trailing={FormRow.Arrow}
-            onPress={() => settings.timestamps.start = Date.now()}
+            onPress={() => {
+              settings.timestamps!.start = Date.now();
+            }}
           />
         </FormSection>
 
@@ -181,35 +258,50 @@ export default function Settings() {
             title="Button 1 Label"
             placeholder="Label"
             value={settings.buttons?.[0]?.label}
-            onChange={(v) => settings.buttons[0].label = v}
+            onChange={(value) => {
+              settings.buttons![0]!.label = value;
+            }}
           />
+
           <FormInput
             title="Button 1 URL"
             placeholder="https://example.com"
             value={settings.buttons?.[0]?.url}
             disabled={!settings.buttons?.[0]?.label}
-            onChange={(v) => settings.buttons[0].url = v}
+            onChange={(value) => {
+              settings.buttons![0]!.url = value;
+            }}
             helpText={
               settings.buttons?.[0]?.label && !settings.buttons?.[0]?.url ? (
-                <ReactNative.Text style={{ color: "red" }}>Required if button label is set</ReactNative.Text>
+                <ReactNative.Text style={{ color: "red" }}>
+                  Required if button label is set
+                </ReactNative.Text>
               ) : undefined
             }
           />
+
           <FormInput
             title="Button 2 Label"
             placeholder="Label"
             value={settings.buttons?.[1]?.label}
-            onChange={(v) => settings.buttons[1].label = v}
+            onChange={(value) => {
+              settings.buttons![1]!.label = value;
+            }}
           />
+
           <FormInput
             title="Button 2 URL"
             placeholder="https://example.com"
             value={settings.buttons?.[1]?.url}
             disabled={!settings.buttons?.[1]?.label}
-            onChange={(v) => settings.buttons[1].url = v}
+            onChange={(value) => {
+              settings.buttons![1]!.url = value;
+            }}
             helpText={
               settings.buttons?.[1]?.label && !settings.buttons?.[1]?.url ? (
-                <ReactNative.Text style={{ color: "red" }}>Required if button label is set</ReactNative.Text>
+                <ReactNative.Text style={{ color: "red" }}>
+                  Required if button label is set
+                </ReactNative.Text>
               ) : undefined
             }
           />
